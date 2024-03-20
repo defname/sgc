@@ -266,14 +266,12 @@ static void scanRegion(void *begin, void *end) {
     void **ptr;
 
     if (begin < end) {
-        printf("order downwards\n");
         for (ptr=begin; ptr < (void**)end; ptr++) {
             checkAddress(ptr);
         }
     }
 
     if (end < begin) {
-        printf("order upwards\n");
         for (ptr=begin; ptr > (void**)end; ptr--) {
             checkAddress(ptr);
         }
@@ -312,7 +310,7 @@ void sweep() {
     }
 }
 
-void sgc_run() {
+void sgc_collect() {
     scanStack();
     trace();
     sweep();
