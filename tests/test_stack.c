@@ -1,6 +1,13 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/**
+ * Just print some stack addresses to learn about alignment.
+ * If you compile this with clang and gcc you will see how
+ * clang throws variable in perfect order onto the stack,
+ * while gcc does crazy reordering...
+ */
+
 #define PRINT_ADDR(var) do { \
     char *ptr = (char*)&var; \
     printf("%4s %p   %2x\n", #var, ptr, (*ptr) & 0xff); \
