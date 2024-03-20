@@ -4,28 +4,6 @@
 #include <stdlib.h>
 
 
-/**
- * github.com/orangeduck/tgc
- */
-static void *stackTop;
-
-void *stackBottom() {
-    int *x;
-    return &x;
-}
-
-void *getStackBottom() {
-    jmp_buf env;
-    setjmp(env);
-    void *(*volatile f)() = stackBottom;
-    return f();
-}
-/**********************/
-
-#define PRINTADDR(var, format) do { \
-    printf("%p ->  "#var" "#format" (size: %lu)\n", &var, var, sizeof(var));  \
-} while(0)
-
 #define CHECK_ADDR_EQ(var, format) \
     if (p == (void*)&var) { \
         printf("Found "#var" at %p ("#format")\n", p, *p); \
@@ -52,14 +30,11 @@ void test() {
 int main(int argc, char **argv) {
     sgc_init();
 
-    stackTop = &argc;
     int *a = (int*)0x0f0f0f0f;
     void *b = &a;
 
     char bar = 1;
     void **p = NULL;
-    void **top = stackTop;
-    void **bottom = getStackBottom();
  
     //for (p = bottom; p <= top; p++) {
     //}
