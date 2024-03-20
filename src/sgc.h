@@ -26,7 +26,7 @@ struct SGC_Slot_ {
 typedef struct SGC_Slot_ SGC_Slot;
 
 #define SLOTS_MAX_LOAD 0.75
-#define SLOTS_INITIAL_CAPACITY 1
+#define SLOTS_INITIAL_CAPACITY 2
 #define SLOTS_GROW_FACTOR 2
 
 typedef struct {
