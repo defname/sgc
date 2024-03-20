@@ -49,7 +49,11 @@ static void adjustSlotsCapacity(int capacity) {
     if (sgc->slots == NULL) exit(1);
     sgc->slotsCapacity = capacity;
     sgc->slotsCount = 0;
-    
+
+#ifdef SGC_DEBUG
+    printf("Adjust slots capacity from %d to %d\n", oldCapacity, capacity);
+#endif
+
     /* initialize new slots */
     for (int i=0; i<sgc->slotsCapacity; i++) {
         SGC_Slot *slot = &sgc->slots[i];
@@ -62,7 +66,7 @@ static void adjustSlotsCapacity(int capacity) {
     /* copy old slots to new table */
     for (int i=0; i<oldCapacity; i++) {
         SGC_Slot *slot = &oldSlots[i];
-        if (slot->flags == SLOT_UNUSED  || slot->flags | SLOT_TOMBSTONE) {
+        if (slot->flags == SLOT_UNUSED  || slot->flags & SLOT_TOMBSTONE) {
             continue;
         }
         SGC_Slot *newSlot = findSlot(slot->address);
