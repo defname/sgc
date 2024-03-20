@@ -5,7 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define SGC_DEBUG
+#define SGC_DEBUG  /**< show debug messages */
+#define SGC_STRESS  /**< run collection before any allocation */
 
 typedef enum Flags {
     SLOT_UNUSED     = 0,
@@ -31,7 +32,7 @@ typedef struct SGC_Slot_ SGC_Slot;
 #define SLOTS_MAX_LOAD 0.75  /**< if the hash table holding the slot informations is fuller, it will be increased */
 #define SLOTS_INITIAL_CAPACITY 8  /**< initial capacity of hash table and lists */
 #define SLOTS_GROW_FACTOR 2  /**< if hash tables or lists become to small, they will be increased by this factor */
-
+#define HEAP_GROW_FACTOR 2  /**< how much more memory to allocate before next collection */
 
 /**
  * Main SGC struct.
@@ -42,6 +43,7 @@ typedef struct {
     uintptr_t minAddress; /**< lower bound of managed allocated memory */ 
     uintptr_t maxAddress; /**< upper bound of managed allocated memory */
     size_t bytesAllocated; /**< number of bytes currently managed */
+    size_t nextGC; /**< number of allocated bytes to trigger the next collection */
     
     int slotsCount; /**< number of memory slots managed */
     int slotsCapacity; /**< total capacity of the hash table holding information about slots */

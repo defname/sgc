@@ -148,6 +148,7 @@ void sgc_init_(void *stackBottom) {
     sgc->minAddress = UINTPTR_MAX;
     sgc->maxAddress = 0;
     sgc->bytesAllocated = 0;
+    sgc->nextGC = 1024;
     
     sgc->slots = NULL;
     sgc->slotsCount = 0;
@@ -191,6 +192,14 @@ void sgc_exit() {
 void *sgc_malloc(size_t size) {
     void *address = malloc(size);
     if (address == NULL) return NULL;
+
+#ifdef SGC_STRESS
+    sgc_collect();
+#else
+    if (sgc->nextGC > sgc->bytesAllocated) {
+        sgc_collect();
+    }
+#endif
 
     SGC_Slot *slot = getSlot((uintptr_t)address);
     slot->size = size;
@@ -304,14 +313,26 @@ void trace() {
 void sweep() {
     for (int i=0; i<sgc->slotsCapacity; i++) {
         SGC_Slot *slot = &sgc->slots[i];
-        if (slot->flags & SLOT_IN_USE && !(slot->flags & SLOT_MARKED)) {
-            freeSlot(slot);
+        if (slot->flags & SLOT_IN_USE) {
+            if (slot->flags & SLOT_MARKED) slot->flags ^= SLOT_MARKED;
+            else freeSlot(slot);
         }
     }
 }
 
 void sgc_collect() {
+#ifdef SGC_DEBUG
+    printf("-- begin collection --\n");
+    size_t before = sgc->bytesAllocated;
+#endif
     scanStack();
     trace();
     sweep();
+
+    sgc->nextGC = sgc->bytesAllocated * HEAP_GROW_FACTOR;
+
+#ifdef SGC_DEBUG
+    printf("-- end collection --\n");
+    printf("   freed %lu bytes (before %lu)\n", sgc->bytesAllocated-before, before);
+#endif
 }

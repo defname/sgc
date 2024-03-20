@@ -54,10 +54,7 @@ int main(int argc, char **argv) {
     void *blub = sgc_malloc(1000);
     test();
 
-    sgc_collect();
-    printf("...\n");
     HeapStuff *s = newHeapStuff();
-    sgc_collect();
-    printf("...\n");
+    void *blabla = sgc_malloc(23);
     sgc_exit();
 }
