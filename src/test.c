@@ -27,6 +27,17 @@ void test() {
 }
 
 
+typedef struct {
+    void *foo;    
+} HeapStuff;
+
+
+HeapStuff *newHeapStuff() {
+    HeapStuff *s = sgc_malloc(sizeof(HeapStuff));
+    s->foo = sgc_malloc(1234);
+    return s;
+}
+
 int main(int argc, char **argv) {
     sgc_init();
 
@@ -43,6 +54,9 @@ int main(int argc, char **argv) {
     void *blub = sgc_malloc(1000);
     test();
 
+    sgc_run();
+    printf("...\n");
+    HeapStuff *s = newHeapStuff();
     sgc_run();
     printf("...\n");
     sgc_exit();

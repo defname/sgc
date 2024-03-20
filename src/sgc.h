@@ -26,7 +26,7 @@ struct SGC_Slot_ {
 typedef struct SGC_Slot_ SGC_Slot;
 
 #define SLOTS_MAX_LOAD 0.75
-#define SLOTS_INITIAL_CAPACITY 2
+#define SLOTS_INITIAL_CAPACITY 8
 #define SLOTS_GROW_FACTOR 2
 
 typedef struct {
@@ -38,6 +38,11 @@ typedef struct {
     int slotsCount;
     int slotsCapacity;
     SGC_Slot *slots;
+
+    int grayCount;
+    int grayCapacity;
+    SGC_Slot **grayList;
+
 #ifdef SGC_DEBUG
     int lastId;
 #endif

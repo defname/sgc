@@ -111,6 +111,14 @@ static SGC_Slot* getSlot(uintptr_t address) {
     return slot;
 }
 
+void markGray(SGC_Slot *slot) {
+    if (sgc->grayCount+1 >= sgc->grayCapacity) {
+        sgc->grayCapacity = sgc->grayCapacity == 0 ? SLOTS_INITIAL_CAPACITY : sgc->grayCapacity * SLOTS_GROW_FACTOR;
+        sgc->grayList = realloc(sgc->grayList, sgc->grayCapacity * sizeof(SGC_Slot*));
+    }
+    sgc->grayList[sgc->grayCount++] = slot;
+}
+
 void sgc_init_(void *stackBottom) {
     sgc = malloc(sizeof(SGC));
     sgc->stackBottom = stackBottom;
@@ -121,6 +129,10 @@ void sgc_init_(void *stackBottom) {
     sgc->slots = NULL;
     sgc->slotsCount = 0;
     sgc->slotsCapacity = 0;
+
+    sgc->grayCount = 0;
+    sgc->grayCapacity = 0;
+    sgc->grayList = NULL;
 
 #ifdef SGC_DEBUG
     sgc->lastId = 0;
@@ -178,20 +190,20 @@ void *sgc_malloc(size_t size) {
     return address;
 }
 
-static void mark_slot(SGC_Slot *slot) {
+static void markSlot(SGC_Slot *slot) {
     slot->flags |= SLOT_MARKED;
 #ifdef SGC_DEBUG
     printf("marked #%d\n", slot->id);
 #endif
 }
 
-static void check_address(void **ptr) {
+static void checkAddress(void **ptr) {
     if (ptr == NULL || (uintptr_t)*ptr < sgc->minAddress || (uintptr_t)*ptr > sgc->maxAddress) return;
     if (sgc->slotsCount == 0) return;
 
     SGC_Slot *slot = findSlot((uintptr_t)*ptr);
     if (slot->flags & SLOT_IN_USE) {
-        mark_slot(slot);
+        markGray(slot);
     }
 }
 
@@ -220,14 +232,14 @@ static void scanRegion(void *begin, void *end) {
     if (begin < end) {
         printf("order downwards\n");
         for (ptr=begin; ptr < (void**)end; ptr++) {
-            check_address(ptr);
+            checkAddress(ptr);
         }
     }
 
     if (end < begin) {
         printf("order upwards\n");
         for (ptr=begin; ptr > (void**)end; ptr--) {
-            check_address(ptr);
+            checkAddress(ptr);
         }
     }
    
@@ -235,6 +247,14 @@ static void scanRegion(void *begin, void *end) {
 
 void scanStack() {
     scanRegion(sgc->stackBottom, getStackTop());
+}
+
+void trace() {
+    while (sgc->grayCount > 0) {
+        SGC_Slot *slot = sgc->grayList[--sgc->grayCount];
+        scanRegion((void*)slot->address, (void*)(slot->address+slot->size));
+        markSlot(slot);
+    }
 }
 
 void sweep() {
@@ -248,5 +268,6 @@ void sweep() {
 
 void sgc_run() {
     scanStack();
+    trace();
     sweep();
 }
