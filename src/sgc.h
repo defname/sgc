@@ -7,25 +7,40 @@
 
 #define SGC_DEBUG
 
+typedef enum Flags {
+    SLOT_UNUSED     = 0,
+    SLOT_IN_USE     = 1,
+    SLOT_MARKED     = 2,
+    SLOT_TOMBSTONE  = 4
+} Flags;
 
 struct SGC_Slot_ {
     size_t size;
-    bool marked;
-    struct SGC_Slot_ *next;
+    Flags flags;
 #ifdef SGC_DEBUG
     int id;
 #endif
-    char memory[];
+    uintptr_t address;
 };
 
 typedef struct SGC_Slot_ SGC_Slot;
+
+#define SLOTS_MAX_LOAD 0.75
+#define SLOTS_INITIAL_CAPACITY 8
+#define SLOTS_GROW_FACTOR 2
 
 typedef struct {
     void *stackBottom;
     uintptr_t minAddress;
     uintptr_t maxAddress;
     size_t bytesAllocated;
+    
+    int slotsCount;
+    int slotsCapacity;
     SGC_Slot *slots;
+#ifdef SGC_DEBUG
+    int lastId;
+#endif
 } SGC;
 
 /**
