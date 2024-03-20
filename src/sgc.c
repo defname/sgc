@@ -40,10 +40,17 @@ static SGC_Slot* findSlot(uintptr_t address) {
     }
 }
 
+/**
+ * Adjust capacity of slots hash table.
+ * @param   capacity the new capacity of the hash table.
+ *                   has to be larger than the old capacity.
+ */
 static void adjustSlotsCapacity(int capacity) {
     SGC_Slot *oldSlots = sgc->slots;
     int oldCapacity = sgc->slotsCapacity;
     int oldCount = sgc->slotsCount;
+
+    if (capacity <= oldCapacity) return;
 
     sgc->slots = malloc(capacity * sizeof(SGC_Slot));
     if (sgc->slots == NULL) exit(1);
@@ -81,6 +88,11 @@ static void adjustSlotsCapacity(int capacity) {
     free(oldSlots);
 }
 
+/**
+ * Grow capacity of slots table.
+ * capacity will be initialized to SLOTS_INITIAL_CAPACITY
+ * or multiplied with SLOTS_GROW_FACTOR
+ */
 static void growSlotsCapacity() {
     int newCapacity = sgc->slotsCapacity == 0
         ? SLOTS_INITIAL_CAPACITY
@@ -88,6 +100,11 @@ static void growSlotsCapacity() {
     adjustSlotsCapacity(newCapacity);
 }
 
+/**
+ * Find slot for address. Grow table capacity if necessary.
+ * @param   address
+ * @return  pointer to the slot for address, initialized and ready to use.
+ */
 static SGC_Slot* getSlot(uintptr_t address) {
     SGC_Slot *slot = findSlot(address);
     /* if slot capacity is 0 or over loaded grow capacity and refind slot */
@@ -111,11 +128,17 @@ static SGC_Slot* getSlot(uintptr_t address) {
     return slot;
 }
 
+/**
+ * Add slot to gray list (tricolor abstraction) 
+ * @param   slot to add to gray list
+ */
 void markGray(SGC_Slot *slot) {
+    /* grow gray list if necessary */
     if (sgc->grayCount+1 >= sgc->grayCapacity) {
         sgc->grayCapacity = sgc->grayCapacity == 0 ? SLOTS_INITIAL_CAPACITY : sgc->grayCapacity * SLOTS_GROW_FACTOR;
         sgc->grayList = realloc(sgc->grayList, sgc->grayCapacity * sizeof(SGC_Slot*));
     }
+    /* add slot to list */
     sgc->grayList[sgc->grayCount++] = slot;
 }
 
@@ -139,6 +162,11 @@ void sgc_init_(void *stackBottom) {
 #endif
 }
 
+/**
+ * free memory managed by slot, and replace it by a tombstone in the
+ * slot table
+ * @param   slot to free
+ */
 static void freeSlot(SGC_Slot *slot) {
 #ifdef SGC_DEBUG
     printf("free #%d\n", slot->id);
@@ -190,6 +218,10 @@ void *sgc_malloc(size_t size) {
     return address;
 }
 
+/**
+ * Mark slot as reachable, and finished (black in tricolor abstraction)
+ * @param   slot to mark
+ */
 static void markSlot(SGC_Slot *slot) {
     slot->flags |= SLOT_MARKED;
 #ifdef SGC_DEBUG
@@ -197,6 +229,10 @@ static void markSlot(SGC_Slot *slot) {
 #endif
 }
 
+/**
+ * Check if there is a pointer at the given address, and if it is managed
+ * by a SGC_Slot. If so mark slot as reachable.
+ */
 static void checkAddress(void **ptr) {
     if (ptr == NULL || (uintptr_t)*ptr < sgc->minAddress || (uintptr_t)*ptr > sgc->maxAddress) return;
     if (sgc->slotsCount == 0) return;
@@ -245,18 +281,28 @@ static void scanRegion(void *begin, void *end) {
    
 }
 
+/**
+ * Scan stack.
+ */
 void scanStack() {
     scanRegion(sgc->stackBottom, getStackTop());
 }
 
+/**
+ * Scan all memory regions of managed slots.
+ */
 void trace() {
     while (sgc->grayCount > 0) {
         SGC_Slot *slot = sgc->grayList[--sgc->grayCount];
+        if (slot->flags & SLOT_MARKED) continue;
         scanRegion((void*)slot->address, (void*)(slot->address+slot->size));
         markSlot(slot);
     }
 }
 
+/**
+ * Free all non-reachable slots.
+ */
 void sweep() {
     for (int i=0; i<sgc->slotsCapacity; i++) {
         SGC_Slot *slot = &sgc->slots[i];
