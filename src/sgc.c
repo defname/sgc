@@ -67,7 +67,9 @@ static void adjustSlotsCapacity(int capacity) {
         slot->size = 0;
         slot->flags = SLOT_UNUSED;
         slot->address = 0;
+#ifdef SGC_DEBUG
         slot->id = -1;
+#endif
     }
 
     /* copy old slots to new table */
@@ -78,7 +80,9 @@ static void adjustSlotsCapacity(int capacity) {
         }
         SGC_Slot *newSlot = findSlot(slot->address);
         newSlot->address = slot->address;
+#ifdef SGC_DEBUG
         newSlot->id = slot->id;
+#endif
         newSlot->size = slot->size;
         newSlot->flags = slot->flags;
         sgc->slotsCount++;
@@ -308,7 +312,7 @@ void trace() {
 }
 
 /**
- * Free all non-reachable slots and remove marking by reachable ones
+ * Free all non-reachable slots and remove marking by reachable one and remove marking by reachable ones
  */
 void sweep() {
     for (int i=0; i<sgc->slotsCapacity; i++) {

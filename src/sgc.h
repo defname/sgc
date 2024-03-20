@@ -2,11 +2,10 @@
 #define SGC_H
 
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdint.h>
 
-#define SGC_DEBUG  /**< show debug messages */
-#define SGC_STRESS  /**< run collection before any allocation */
+// #define SGC_DEBUG  /**< show debug messages */
+// #define SGC_STRESS  /**< run collection before any allocation */
 
 typedef enum Flags {
     SLOT_UNUSED     = 0,
