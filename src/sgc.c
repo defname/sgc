@@ -308,7 +308,7 @@ void trace() {
 }
 
 /**
- * Free all non-reachable slots.
+ * Free all non-reachable slots and remove marking by reachable ones
  */
 void sweep() {
     for (int i=0; i<sgc->slotsCapacity; i++) {
