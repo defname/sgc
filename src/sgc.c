@@ -164,6 +164,8 @@ void sgc_init_(void *stackBottom) {
 
 #ifdef SGC_DEBUG
     sgc->lastId = 0;
+
+    printf("== SGC initialized\n");
 #endif
 }
 
@@ -174,7 +176,7 @@ void sgc_init_(void *stackBottom) {
  */
 static void freeSlot(SGC_Slot *slot) {
 #ifdef SGC_DEBUG
-    printf("free #%d\n", slot->id);
+    printf("   - free #%d\n", slot->id);
 #endif
     sgc->bytesAllocated -= slot->size;    
     free((void*)slot->address);
@@ -184,6 +186,9 @@ static void freeSlot(SGC_Slot *slot) {
 }
 
 void sgc_exit() {
+#ifdef SGC_DEBUG
+    printf("-- start cleaning up\n");
+#endif
     for (int i=0; i<sgc->slotsCapacity; i++) {
         SGC_Slot *slot = &sgc->slots[i];
         if (slot->flags & SLOT_IN_USE)
@@ -191,6 +196,10 @@ void sgc_exit() {
     }
     free(sgc->slots);
     free(sgc);
+#ifdef SGC_DEBUG
+    printf("-- end cleanup up\n");
+    printf("== SGC exited\n");
+#endif
 }
 
 void *sgc_malloc(size_t size) {
@@ -211,20 +220,20 @@ void *sgc_malloc(size_t size) {
     slot->flags = SLOT_IN_USE;
 
 #ifdef SGC_DEBUG
-    printf("Allocated %lu bytes for #%d\n", size, slot->id);
+    printf("-- allocated %lu bytes for #%d\n", size, slot->id);
 #endif
     sgc->bytesAllocated += size;
 
     if ((uintptr_t)slot->address < sgc->minAddress) {
         sgc->minAddress = slot->address;
 #ifdef SGC_DEBUG
-        printf("Update min address to %p\n", (void*)sgc->minAddress);
+        printf("   update min address to %p\n", (void*)sgc->minAddress);
 #endif
     }
     if (slot->address+size > sgc->maxAddress) {
         sgc->maxAddress = slot->address+size;
 #ifdef SGC_DEBUG
-        printf("Update max address to %p\n", (void*)sgc->maxAddress);
+        printf("   update max address to %p\n", (void*)sgc->maxAddress);
 #endif
     }
 
@@ -238,7 +247,7 @@ void *sgc_malloc(size_t size) {
 static void markSlot(SGC_Slot *slot) {
     slot->flags |= SLOT_MARKED;
 #ifdef SGC_DEBUG
-    printf("marked #%d\n", slot->id);
+    printf("   > marked #%d\n", slot->id);
 #endif
 }
 
@@ -326,7 +335,7 @@ void sweep() {
 
 void sgc_collect() {
 #ifdef SGC_DEBUG
-    printf("-- begin collection --\n");
+    printf("-- begin collection\n");
     size_t before = sgc->bytesAllocated;
 #endif
     scanStack();
@@ -336,8 +345,8 @@ void sgc_collect() {
     sgc->nextGC = sgc->bytesAllocated * HEAP_GROW_FACTOR;
 
 #ifdef SGC_DEBUG
-    printf("-- end collection --\n");
-    printf("   freed %lu bytes (before %lu, now: %lu)\n", sgc->bytesAllocated-before, before, sgc->bytesAllocated);
+    printf("-- end collection\n");
+    printf("   freed %lu bytes (before %lu, now: %lu)\n", before-sgc->bytesAllocated, before, sgc->bytesAllocated);
     printf("   next collection at %lu\n", sgc->nextGC);
 #endif
 }
