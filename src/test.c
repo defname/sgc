@@ -28,7 +28,7 @@ void test() {
 
 
 typedef struct {
-    void *foo;    
+    void *foo; 
 } HeapStuff;
 
 
@@ -38,11 +38,21 @@ HeapStuff *newHeapStuff() {
     return s;
 }
 
+void recursiveAllocationsFunction(int i, HeapStuff *p) {
+    printf(">> recursive allocation function call %d\n", i);
+    p->foo = sgc_malloc(sizeof(HeapStuff) + 10000);
+
+    if (i == 0) return;
+    recursiveAllocationsFunction(i-1, (HeapStuff*)p->foo);
+}
+
 int main(int argc, char **argv) {
     sgc_init();
 
     int *a = (int*)0x0f0f0f0f;
     void *b = &a;
+
+    recursiveAllocationsFunction(50, sgc_malloc(sizeof(HeapStuff)));
 
     char bar = 1;
     void **p = NULL;

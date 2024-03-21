@@ -200,7 +200,7 @@ void *sgc_malloc(size_t size) {
 #ifdef SGC_STRESS
     sgc_collect();
 #else
-    if (sgc->nextGC > sgc->bytesAllocated) {
+    if (sgc->bytesAllocated > sgc->nextGC) {
         sgc_collect();
     }
 #endif
@@ -337,6 +337,7 @@ void sgc_collect() {
 
 #ifdef SGC_DEBUG
     printf("-- end collection --\n");
-    printf("   freed %lu bytes (before %lu)\n", sgc->bytesAllocated-before, before);
+    printf("   freed %lu bytes (before %lu, now: %lu)\n", sgc->bytesAllocated-before, before, sgc->bytesAllocated);
+    printf("   next collection at %lu\n", sgc->nextGC);
 #endif
 }
