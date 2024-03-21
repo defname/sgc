@@ -12,6 +12,12 @@ static uint32_t hashAddress(uintptr_t address) {
 
 /**
  * Find slot for address (hash table style).
+ *
+ * Calculate the index of the address to look up. If the slot at this index
+ * has the right address, that's what we were looking for, if it's empty
+ * there is no slot for this address (yet). If the slot is used for another
+ * address look at the next slot, until you find the address or an empty slot.
+ *
  * @param   address memory address
  * @return  slot according to address or empty slot. NULL if capacity is 0
  */
@@ -25,17 +31,22 @@ static SGC_Slot* findSlot(uintptr_t address) {
      */
     while (1) {
         SGC_Slot *slot = &sgc->slots[idx];
-        if (slot->address == 0) {
-            if (slot->flags == SLOT_UNUSED) {
+        if (slot->address == 0) {  /* found empty slot or tombstone */
+            if (slot->flags == SLOT_UNUSED) {  /* found empty slot */
+                /* Since the slot is unused, it's ensured that there is
+                 * no slot for the address we are looking for in use.
+                 * If we came across a tombstone return it, for reuse */
                 return tombstone != NULL ? tombstone : slot;
             }
-            else {
+            else {  /* found tombstone */
+                /* remember the first tombstone we step over */
                 if (tombstone == NULL) tombstone = slot;
             }
         }
-        else if (slot->address == address) {
+        else if (slot->address == address) { /* found correct slot */
             return slot;
         }
+        /* slot is used for another address, so look at the next one */
         idx = (idx + 1) % sgc->slotsCapacity;
     }
 }
@@ -76,6 +87,7 @@ static void adjustSlotsCapacity(int capacity) {
     for (int i=0; i<oldCapacity; i++) {
         SGC_Slot *slot = &oldSlots[i];
         if (slot->flags == SLOT_UNUSED  || slot->flags & SLOT_TOMBSTONE) {
+            /* ignore unused slots and tombstones */
             continue;
         }
         SGC_Slot *newSlot = findSlot(slot->address);
@@ -120,7 +132,7 @@ static SGC_Slot* getSlot(uintptr_t address) {
     }
     /* empty slot found, so initialize it */
     if (slot->address == 0) {
-        if (slot->flags == SLOT_UNUSED) { /* if the slot is a tombstone it's counted already */
+        if (slot->flags == SLOT_UNUSED) { /* if the slot is a tombstone it was counted already */
             sgc->slotsCount++; 
         }
         slot->address = address;
@@ -151,6 +163,7 @@ void sgc_init_(void *stackBottom) {
     sgc->stackBottom = stackBottom;
     sgc->minAddress = UINTPTR_MAX;
     sgc->maxAddress = 0;
+
     sgc->bytesAllocated = 0;
     sgc->nextGC = 1024;
     
@@ -179,22 +192,32 @@ static void freeSlot(SGC_Slot *slot) {
     printf("   - free #%d\n", slot->id);
 #endif
     sgc->bytesAllocated -= slot->size;    
+
     free((void*)slot->address);
+
     slot->address = 0;
     slot->flags = SLOT_TOMBSTONE;
     slot->size = 0;
 }
 
+/**
+ * Free all slots, grayList and the main struct
+ */
 void sgc_exit() {
 #ifdef SGC_DEBUG
     printf("-- start cleaning up\n");
 #endif
+    /* free all used slots */
     for (int i=0; i<sgc->slotsCapacity; i++) {
         SGC_Slot *slot = &sgc->slots[i];
         if (slot->flags & SLOT_IN_USE)
             freeSlot(slot);
     }
+    /* free slots list */
     free(sgc->slots);
+    /* free gray list */
+    free(sgc->grayList);
+    /* free main struct */
     free(sgc);
 #ifdef SGC_DEBUG
     printf("-- end cleanup up\n");
@@ -202,18 +225,28 @@ void sgc_exit() {
 #endif
 }
 
+/**
+ * Allocate managed memory.
+ *
+ * Find a slot for storing information about the memory,
+ * allocate memory at the heap and store it's adress and size.
+ * Start collection if a decent amount of memory was allocated.
+ */
 void *sgc_malloc(size_t size) {
+    /* allocate requested amount of memory */
     void *address = malloc(size);
     if (address == NULL) return NULL;
 
 #ifdef SGC_STRESS
     sgc_collect();
 #else
+    /* if enough memory was allocated in total start a collection */
     if (sgc->bytesAllocated > sgc->nextGC) {
         sgc_collect();
     }
 #endif
 
+    /* store information about the memory */
     SGC_Slot *slot = getSlot((uintptr_t)address);
     slot->size = size;
     slot->address = (uintptr_t)address;
@@ -222,8 +255,11 @@ void *sgc_malloc(size_t size) {
 #ifdef SGC_DEBUG
     printf("-- allocated %lu bytes for #%d\n", size, slot->id);
 #endif
+    /* add size to total amout of allocated memory, for triggering
+     * the next collection */
     sgc->bytesAllocated += size;
 
+    /* update minimal and maximal memory address */
     if ((uintptr_t)slot->address < sgc->minAddress) {
         sgc->minAddress = slot->address;
 #ifdef SGC_DEBUG
@@ -256,11 +292,17 @@ static void markSlot(SGC_Slot *slot) {
  * by a SGC_Slot. If so mark slot as reachable.
  */
 static void checkAddress(void **ptr) {
-    if (ptr == NULL || (uintptr_t)*ptr < sgc->minAddress || (uintptr_t)*ptr > sgc->maxAddress) return;
-    if (sgc->slotsCount == 0) return;
+    if (sgc->slotsCount == 0) return; /* return if no memory is managed */
 
-    SGC_Slot *slot = findSlot((uintptr_t)*ptr);
+    /* check if the value (interpreted as a memory address) is in the range of
+     * managed addresses */
+    uintptr_t address = (uintptr_t)*ptr;
+    if (ptr == NULL || address < sgc->minAddress || address > sgc->maxAddress) return;
+
+    /* check if the address is managed */
+    SGC_Slot *slot = findSlot(address);
     if (slot->flags & SLOT_IN_USE) {
+        /* if address is managed put slot on gray list */
         markGray(slot);
     }
 }
@@ -282,7 +324,6 @@ void *getStackTop() {
  * begin and end should be aligned to sizeof(void*)
 */
 static void scanRegion(void *begin, void *end) {
- 
     if (begin == end) return;
 
     void **ptr;
@@ -313,9 +354,13 @@ void scanStack() {
  */
 void trace() {
     while (sgc->grayCount > 0) {
+        /* get last element of grayList and remove it from list */
         SGC_Slot *slot = sgc->grayList[--sgc->grayCount];
+        /* continue if it's already done */
         if (slot->flags & SLOT_MARKED) continue;
+        /* scan memory managed by slot */
         scanRegion((void*)slot->address, (void*)(slot->address+slot->size));
+        /* mark slot as done (black in tricolor abstraction) */
         markSlot(slot);
     }
 }
@@ -326,13 +371,19 @@ void trace() {
 void sweep() {
     for (int i=0; i<sgc->slotsCapacity; i++) {
         SGC_Slot *slot = &sgc->slots[i];
+        /* ignore unused slots */
         if (slot->flags & SLOT_IN_USE) {
+            /* unmark marked slots */
             if (slot->flags & SLOT_MARKED) slot->flags ^= SLOT_MARKED;
+            /* free unmarked slots */
             else freeSlot(slot);
         }
     }
 }
 
+/**
+ * scan, trace and sweep garbage.
+ */
 void sgc_collect() {
 #ifdef SGC_DEBUG
     printf("-- begin collection\n");
@@ -342,6 +393,7 @@ void sgc_collect() {
     trace();
     sweep();
 
+    /* update amount of memory at which the next collection should be triggered */
     sgc->nextGC = sgc->bytesAllocated * HEAP_GROW_FACTOR;
 
 #ifdef SGC_DEBUG

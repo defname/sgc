@@ -1,3 +1,6 @@
+/**
+ * Simple Garbage Collector
+ */
 #ifndef SGC_H
 #define SGC_H
 
@@ -35,19 +38,27 @@ typedef struct SGC_Slot_ SGC_Slot;
 
 /**
  * Main SGC struct.
- * (stackBottom will usually have the highest address)
  */
 typedef struct {
+    /* stackBottom will usually have the highest address, since stack grows from high to
+     * low addresses. */
     void *stackBottom; /**< pointer to lowest part of the stack (has to be aligned) */
+
     uintptr_t minAddress; /**< lower bound of managed allocated memory */ 
     uintptr_t maxAddress; /**< upper bound of managed allocated memory */
+
+    /* used to decide when to collect garbage */
     size_t bytesAllocated; /**< number of bytes currently managed */
     size_t nextGC; /**< number of allocated bytes to trigger the next collection */
     
+    /* slots hold information about allocated memory.
+     * They are stored in a hash map mapping the memory address to the slot. */
     int slotsCount; /**< number of memory slots managed */
     int slotsCapacity; /**< total capacity of the hash table holding information about slots */
     SGC_Slot *slots; /**< slots hash table */
 
+    /* grayList is a dynamic list build during scanRegion().
+     * It's a todo list with slots which associated memory still needs to be scanned. */
     int grayCount; /**< number of elements in grayList */
     int grayCapacity; /**< capacity of grayList */
     SGC_Slot **grayList; /**< gray list (tricolor abstraction) */
