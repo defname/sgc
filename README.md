@@ -35,3 +35,10 @@ For example:
 ```
 gcc -DSGC_DEBUG -o test src/*.c
 ```
+
+## Ressources
+
+- [Crafting Interpreters - Chapter 26: Garbage Collection](https://craftinginterpreters.com/garbage-collection.html)
+- [Tiny Garbage Collector](https://github.com/orangeduck/tgc)
+- [gc](https://github.com/mkirchner/gc)
+- [Writing a Simple Garbage Collector in C](https://maplant.com/2020-04-25-Writing-a-Simple-Garbage-Collector-in-C.html)
