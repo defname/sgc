@@ -40,7 +40,9 @@ HeapStuff *newHeapStuff() {
 
 void recursiveAllocationsFunction(int i, HeapStuff *p) {
     printf(">> recursive allocation function call %d\n", i);
-    p->foo = sgc_malloc(sizeof(HeapStuff) + 10000);
+    p->foo = sgc_malloc(sizeof(HeapStuff) + 100);
+
+    newHeapStuff();
 
     if (i == 0) return;
     recursiveAllocationsFunction(i-1, (HeapStuff*)p->foo);
