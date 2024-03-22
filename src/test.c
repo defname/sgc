@@ -48,13 +48,22 @@ void recursiveAllocationsFunction(int i, HeapStuff *p) {
     recursiveAllocationsFunction(i-1, (HeapStuff*)p->foo);
 }
 
+void *bss1;
+
 int main(int argc, char **argv) {
     sgc_init();
+    bss1 = sgc_malloc(321);
+    static void *bss2;
+    bss2 = sgc_malloc(123);
+    sgc_collect();
+    sgc_exit();
+    return 0;
 
     int *a = (int*)0x0f0f0f0f;
     void *b = &a;
 
-    recursiveAllocationsFunction(50, sgc_malloc(sizeof(HeapStuff)));
+    for (int i=0; i<100; i++)
+        recursiveAllocationsFunction(500, sgc_malloc(sizeof(HeapStuff)));
 
     char bar = 1;
     void **p = NULL;

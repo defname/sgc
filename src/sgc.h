@@ -9,6 +9,7 @@
 
 // #define SGC_DEBUG  /**< show debug messages */
 // #define SGC_STRESS  /**< run collection before any allocation */
+// #define SGC_DEBUG_HASHTABLE  /**< inform about collisions, growing, etc */
 
 typedef enum Flags {
     SLOT_UNUSED     = 0,

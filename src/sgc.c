@@ -363,7 +363,10 @@ void *getStackTop() {
 
 /* 
  * Go through region and scan for known pointers.
- * begin and end should be aligned to sizeof(void*)
+ * begin and end should be aligned to sizeof(void*).
+ *
+ * @param begin the first address to scan
+ * @param end the address of the end of the region
 */
 static void scanRegion(void *begin, void *end) {
     if (begin == end) return;
@@ -431,6 +434,9 @@ void sgc_collect() {
     printf("-- begin collection\n");
     size_t before = sgc->bytesAllocated;
 #endif
+    extern char end, etext; /* provided by the linker */
+    scanRegion(&end, &etext);
+    
     scanStack();
     trace();
     sweep();
