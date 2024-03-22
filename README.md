@@ -15,15 +15,15 @@ and the [GCC](https://gcc.gnu.org/) compiler.
 ## Usage
 Initialize the garbage collector before any memory allocations or pointer
 declarations with
-```
+```C
 void sgc_init()
 ```
 then use
-```
+```C
 void *sgc_malloc(size_t size)
 ```
 to allocate memory and call
-```
+```C
 void sgc_exit()
 ```
 to cleanup at the very end.
@@ -35,6 +35,25 @@ to show debug messages and
 For example:
 ```
 gcc -DSGC_DEBUG -o test src/*.c
+```
+
+## Example
+
+```C
+#include "sgc.h"
+
+void heapStuff() {
+  void *p = sgc_malloc(123);
+}
+
+int main() {
+  /* initialize the garbage collector */
+  sgc_init();
+  /* do not worry about freeing memory */
+  heapStuff();
+  /* tell the garbage collector to do a final cleanup */
+  sgc_exit();
+}
 ```
 
 ## Ressources
