@@ -62,7 +62,7 @@ the collector checks if there are any pointers to that address currently in use 
 
 In detail it's a little bit more complex and I encountered different problems.
 
-### Can it be freed
+### Can it be freed?
 I came accross the idea of learning more about garbage collectors when reading the chapter about it in the amazing book [Crafting Interpreters](https://craftinginterpreters.com/).
 There everything is managed with objects that points to each other and there is a list of all objects and also a list of root objects that are in use.
 So you could trace the references in the root objects to find all live objects and simply delete all the others.
@@ -80,7 +80,7 @@ void scanRegion(void *begin, void *end) {
 }
 ```
 
-### Where to look for pointers
+### Where to look for pointers?
 But where in the memory should we look for pointers? Local variables live on the stack. New variables are thrown there and if they go out of scope they are popped of...
 So if there are local pointers the address they are pointing to can be found there.
 
@@ -117,8 +117,18 @@ To find the top of the stack I just implemented a tiny function that gets a new 
 which address is a upper bound (lower bound in the real world, because the stack grows from 
 high to low addresses usually) for the local variables of the calling function.
 
-*TODO*
+### Checking if a address is managed
+If the lower and upper bound of the stack is found and iterating over it works, we still need
+to check if what we find there is a valid memory address to a memory region that is managed by
+the garbage collector.
 
+To do so, we store every address of allocated memory together with it's size and also the
+lowest and highest address.
+Then we just check if the number we are looking at is in bound of the addresses we manage and if
+so if it's actually in the list of managed addresses.
+
+For a efficient lookup the addresses are stored in a hash table together with the size of the
+allocation.
 
 ## Ressources
 
