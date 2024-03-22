@@ -435,7 +435,7 @@ void sgc_collect() {
     size_t before = sgc->bytesAllocated;
 #endif
     extern char end, etext; /* provided by the linker */
-    scanRegion(&end, &etext);
+    scanRegion(&end, &etext); /* not sure why it only works correcty if end is provides as first parameter */
     
     scanStack();
     trace();
