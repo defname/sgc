@@ -5,9 +5,9 @@ to learn how one could work and which problems are encountered along
 the path.
 
 So far it's a simple stop-the-world mark-and-sweep garbage collector which
-operates on the stack (local variables) and the heap (allocated memory) if
-it's allocated by ``sgc_malloc()``. It does not look through other parts
-of the memory.
+operates on the stack (local variables), data segment and BSS (global variables)
+and the heap (allocated memory) if
+it's allocated by ``sgc_malloc()``.
 
 It's tested (just a little bit) with the [clang](https://clang.llvm.org/)
 and the [GCC](https://gcc.gnu.org/) compiler.
