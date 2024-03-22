@@ -6,8 +6,32 @@
 
 SGC *sgc;
 
+/**
+ * Compute a 32bit hash value of address.
+ * 
+ * It's the FNV-1a hash function. Taken from
+ * https://craftinginterpreters.com/hash-tables.html#hash-functions
+ *
+ * I tried different (simple ones) and this one produces the
+ * least amount of collisions.
+ *
+ * To inform about collisions set SGC_DEBUG_HASHTABLE.
+ *
+ * @param address memory address to hash
+ */
 static uint32_t hashAddress(uintptr_t address) {
-    return (uint32_t)address;
+    uint32_t hash = 2166136261u;
+    uint8_t *a = (uint8_t*)&address;
+    hash ^= a[0];
+    hash *= 16777619;
+    hash ^= a[1];
+    hash *= 16777619;
+    hash ^= a[2];
+    hash *= 16777619;
+    hash ^= a[3];
+    hash *= 16777619;
+    return hash;
+    return (13*address) ^ (address >> 15);
 }
 
 /**
@@ -26,6 +50,10 @@ static SGC_Slot* findSlot(uintptr_t address) {
     uint32_t hash = hashAddress(address);
     uint32_t idx = hash % sgc->slotsCapacity;
     SGC_Slot *tombstone = NULL;
+#ifdef SGC_DEBUG_HASHTABLE
+    int collisiontCount = 0;
+    printf(" * find slot for %p (capacity: %d, count: %d)\n", (void*)address, sgc->slotsCapacity, sgc->slotsCount);
+#endif
     /* since load of the hash table is never above 0.75% it's garanteed we hit
      * an empty slot at some point.
      */
@@ -36,6 +64,11 @@ static SGC_Slot* findSlot(uintptr_t address) {
                 /* Since the slot is unused, it's ensured that there is
                  * no slot for the address we are looking for in use.
                  * If we came across a tombstone return it, for reuse */
+#ifdef SGC_DEBUG_HASHTABLE
+                if (tombstone != NULL) {
+                    printf(" * reusing tombstone\n");
+                }
+#endif
                 return tombstone != NULL ? tombstone : slot;
             }
             else {  /* found tombstone */
@@ -48,6 +81,9 @@ static SGC_Slot* findSlot(uintptr_t address) {
         }
         /* slot is used for another address, so look at the next one */
         idx = (idx + 1) % sgc->slotsCapacity;
+#ifdef SGC_DEBUG_HASHTABLE
+        printf(" * hash table collision %d\n", ++collisiontCount);
+#endif
     }
 }
 
@@ -113,6 +149,9 @@ static void growSlotsCapacity() {
     int newCapacity = sgc->slotsCapacity == 0
         ? SLOTS_INITIAL_CAPACITY
         : sgc->slotsCapacity * SLOTS_GROW_FACTOR;
+#ifdef SGC_DEBUG_HASHTABLE
+    printf(" * grow slots capacity to %d\n", newCapacity);
+#endif
     adjustSlotsCapacity(newCapacity);
 }
 
@@ -221,6 +260,9 @@ void sgc_exit() {
     free(sgc);
 #ifdef SGC_DEBUG
     printf("-- end cleanup up\n");
+    if (sgc->bytesAllocated > 0) {
+        printf(" ! not all allocated bytes got free\n");
+    }
     printf("== SGC exited\n");
 #endif
 }

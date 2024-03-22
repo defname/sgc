@@ -28,7 +28,8 @@ void sgc_exit()
 ```
 to cleanup at the very end.
 
-For compilation you can define ``SGC_DEBUG`` to show debug messages and
+For compilation you can define ``SGC_DEBUG`` and ``SGC_DEBUG_HASHTABLE``
+to show debug messages and
 ``SGC_STRESS`` to collect garbage at every allocation.
 
 For example:
