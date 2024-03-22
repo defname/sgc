@@ -56,6 +56,70 @@ int main() {
 }
 ```
 
+## How it works
+In general it's pretty simple. If memory is allocated by ``sgc_malloc()`` the garbage collector remembers the address of this memory. When a collection is performed
+the collector checks if there are any pointers to that address currently in use and frees it if not.
+
+In detail it's a little bit more complex and I encountered different problems.
+
+### Can it be freed
+I came accross the idea of learning more about garbage collectors when reading the chapter about it in the amazing book [Crafting Interpreters](https://craftinginterpreters.com/).
+There everything is managed with objects that points to each other and there is a list of all objects and also a list of root objects that are in use.
+So you could trace the references in the root objects to find all live objects and simply delete all the others.
+
+In plain C it's different.
+There are pointers that points to some address somewhere in the memory but there is no list of pointers you can access. BUT C let you dig through memory almost as you wish and pointers
+are variables that hold a memory address which is a 32bit unsigned integer (at least in my case, this might differ between architectures I guess) and they live in the memory itself.
+So one could look through memory looking for numbers that could possibly be memory addresseses and check if they are managed by the garbage collector.
+```
+void scanRegion(void *begin, void *end) {
+  void **ptr = begin;
+  for (; ptr < end; ptr++) {
+    /* check if *ptr is a memory address managed by the garbage collector */
+  }
+}
+```
+
+### Where to look for pointers
+But where in the memory should we look for pointers? Local variables live on the stack. New variables are thrown there and if they go out of scope they are popped of...
+So if there are local pointers the address they are pointing to can be found there.
+
+A little problem is to find the bounding memory addresses of the stack. In a perfect world one could just take the address of the first local variable and the address of the last local
+variable to get those addresses.
+```C
+int main(int argc, char **argv) {    /*  Stack: 0x00 argc           1    */
+  void *stackBottom = &argc;         /*         0x04 argv           0xXX */
+  /* do some stuff */                /*         0x0B stackBottom    0x00 */
+  int dummy = 0;                     /*         ...                      */
+  void *stackTop = &dummy;           /*         0xF0 dummy          0    */
+}                                    /*         0xF4 stackTop       0xF0 */
+```
+Sadly this does not work.
+One reason is [memory alignment](https://en.wikipedia.org/wiki/Data_structure_alignment).
+The memory would look more like this.
+```
+ 0x00          0x08          0x10          0x18    ...   0xF0          0xF8
+  +-------------+-------------+-------------+-------------+-------------+-------------+
+  |      | argc | argv        | stackBottom |      ...    |      |dummy | stackTop    |
+  +-------------+-------------+-------------+-------------+-------------+-------------+
+```
+The loop need to start at the address of a pointer to iterate over possible pointers.
+
+This approach worked with the clang compiler, but then I recognized that gcc reorders the
+variables on the stack in a not predictable way. So another idea was needed.
+
+I found out that the current address of the top of the stack is stored in a register that
+can be read with a little bit of inline assembly. Also the address of the begin of the current
+call frame (that's the position of the stack where a new function call starts and the local
+variables of that function follow). That's pretty perfect, cause the address of the current call
+frame is perfectly aligned, so the iteration can start there.
+To find the top of the stack I just implemented a tiny function that gets a new call frame
+which address is a upper bound (lower bound in the real world, because the stack grows from 
+high to low addresses usually) for the local variables of the calling function.
+
+*TODO*
+
+
 ## Ressources
 
 - [Crafting Interpreters - Chapter 26: Garbage Collection](https://craftinginterpreters.com/garbage-collection.html)
