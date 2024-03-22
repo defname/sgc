@@ -108,7 +108,7 @@ The loop need to start at the address of a pointer to iterate over possible poin
 This approach worked with the clang compiler, but then I recognized that gcc reorders the
 variables on the stack in a not predictable way. So another idea was needed.
 
-I found out that the current address of the top of the stack is stored in a register that
+Luckily the current address of the top of the stack is stored in a register that
 can be read with a little bit of inline assembly. Also the address of the begin of the current
 call frame (that's the position of the stack where a new function call starts and the local
 variables of that function follow). That's pretty perfect, cause the address of the current call
