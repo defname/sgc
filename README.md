@@ -4,7 +4,7 @@ Experiments for implementing a garbage collector (for C in this case)
 to learn how one could work and which problems are encountered along
 the path.
 
-So far it's a simple stop-the-world mark-and-sweep garbage collector which
+So far it's a simple conservative stop-the-world mark-and-sweep garbage collector which
 operates on the stack (local variables), data segment and BSS (global variables)
 and the heap (allocated memory) if
 it's allocated by ``sgc_malloc()``.
