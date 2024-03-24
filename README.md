@@ -56,6 +56,13 @@ int main() {
 }
 ```
 
+## Restrictions
+- Allocated memory will be freed during a collection if its address is not found in memory anymore. So if you do some pointer arithmetic and discard the original
+pointer to the memory it might get lost.
+- No cpu registeres are checked for pointer addresses. I don't know how to easily access the registers I don't want to mess around with assembly too much.
+A solution could be to flush the registers onto the stack but this isn't implemented so far. ([here is a solution](https://github.com/mkirchner/gc?tab=readme-ov-file#dumping-registers-on-the-stack))
+- It only works with x64 architectures since the registers for the current call frame are read with assembly.
+
 ## How it works
 In general it's pretty simple. If memory is allocated by ``sgc_malloc()`` the garbage collector remembers the address of this memory. When a collection is performed
 the collector checks if there are any pointers to that address currently in use and frees it if not.
