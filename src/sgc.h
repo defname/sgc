@@ -105,6 +105,15 @@ void sgc_exit();
 void *sgc_malloc(size_t size);
 
 /**
+ * Change the size of allocated memory.
+ * Find a suitable slot and copy the data to the new location.
+ * Return the pointer to the new location.
+ * @param   ptr the pointer to reallocate
+ * @param   newSize number of bytes to allocate
+ */
+void *sgc_realloc(void *ptr, size_t newSize);
+
+/**
  * Run the garbage collector.
  * There is no need to call this function manually, but you
  * can do if you want.
