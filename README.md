@@ -22,6 +22,10 @@ then use
 ```C
 void *sgc_malloc(size_t size)
 ```
+or
+```C
+void *sgc_realloc(void *ptr, size_t size)
+```
 to allocate memory and call
 ```C
 void sgc_exit()
